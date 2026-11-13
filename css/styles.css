@@ -176,7 +176,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .listing-management > [id="remove-listing-confirm"] > p { color: var(--muted); font-size: .85rem; }
 .profile-detail-row { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--line); font-size: .82rem; }
 .profile-detail-row span { color: var(--muted); font-size: .7rem; letter-spacing: .08em; }
-.profile-detail-row strong { text-align: right; }
+.profile-detail-row strong { text-align: right; overflow-wrap: anywhere; }
+.profile-demo-note { color: var(--muted); font-size: .78rem; }
 .profile-quote { margin-top: 1.4rem; }
 .profile-unavailable { color: var(--warning); font-size: .84rem; }
 .auth-page { min-height: 100vh; display: grid; grid-template-columns: minmax(250px, .8fr) minmax(360px, 1.2fr); background: linear-gradient(135deg, #164b45 0 35%, var(--paper) 35%); }

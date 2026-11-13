@@ -414,6 +414,25 @@
     });
   }
 
+  function makerContactDetails(maker) {
+    if (maker.source === "local") {
+      return '<div class="profile-detail-row"><span>CONTACT</span><strong>Not provided in this demo listing</strong></div>';
+    }
+    return '<div class="profile-detail-row"><span> CONTACT</span><strong>' + escapeHTML(maker.contactName) + "</strong></div>" +
+      '<div class="profile-detail-row"><span> EMAIL</span><strong>' + escapeHTML(maker.contactEmail) + "</strong></div>" +
+      '<div class="profile-detail-row"><span> PHONE</span><strong>' + escapeHTML(maker.contactPhone) + "</strong></div>" +
+      '<p class="profile-demo-note">Fictional contact details only; they cannot be used to reach a maker.</p>';
+  }
+
+  function makerCertificationDetails(maker) {
+    if (maker.source === "local") {
+      return '<div class="profile-detail-row"><span>CERTIFICATIONS</span><strong>Not provided in this demo listing</strong></div>';
+    }
+    return maker.certifications.map(function (certification) {
+      return '<div class="profile-detail-row"><span> CERTIFICATION</span><strong>' + escapeHTML(certification) + "</strong></div>";
+    }).join("") + '<p class="profile-demo-note">Fictional demo credentials only; none have been issued or verified.</p>';
+  }
+
   function renderMaker() {
     const id = new URLSearchParams(location.search).get("id");
     const maker = currentVendors().find(function (vendor) { return vendor.id === id; });
@@ -425,7 +444,7 @@
     const removeControls = maker.source === "local"
       ? '<div class="listing-management"><button class="reject-button" id="remove-listing" type="button">Remove this listing</button><div id="remove-listing-confirm" hidden><p>Delete this demo listing and its photo from this browser?</p><div class="officer-actions"><button class="button button-dark" id="cancel-remove-listing" type="button">Keep listing</button><button class="reject-button" id="confirm-remove-listing" type="button">Delete listing</button></div></div><div id="remove-listing-status" class="status-region" role="status" aria-live="polite"></div></div>'
       : "";
-    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="profile-layout"><div class="profile-image">' + vendorImage(maker, maker.imageAlt || maker.product + " photo") + '<span>' + escapeHTML(status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : maker.source === "local" ? "Pending demo listing" : "Pending sample") + "</span></div><div class=\"profile-details\"><p class=\"eyebrow eyebrow-dark\">" + escapeHTML(maker.category.toUpperCase()) + ' <span class="heading-line"></span></p><h1>' + escapeHTML(maker.name) + '</h1><p class="profile-town">⌖ ' + escapeHTML(maker.town) + ', Marinduque</p><p class="profile-description">' + escapeHTML(maker.description) + '</p><div class="profile-detail-row"><span>PRODUCT</span><strong>' + escapeHTML(maker.product) + '</strong></div><div class="profile-detail-row"><span>CAPACITY</span><strong>' + escapeHTML(maker.capacity) + '</strong></div><div class="profile-detail-row"><span>CERTIFICATIONS</span><strong>Not provided in sample data</strong></div><div class="profile-detail-row"><span>CONTACT</span><strong>Not provided in sample data</strong></div>' + (status === "verified" ? '<a class="button button-dark profile-quote" href="quote.html?id=' + encodeURIComponent(maker.id) + '">Request a sample quote <span>→</span></a>' : '<p class="profile-unavailable">Quote requests are only shown for verified sample makers.</p>') + '<p class="sample-note"><span class="sample-note-dot"></span>' + (maker.source === "local" ? "Browser-only demo listing. Not published or verified." : "Fictional sample profile. Representative photo; not a real business or official verification.") + "</p>" + removeControls + "</div></section>" + footer() + "</div>";
+    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="profile-layout"><div class="profile-image">' + vendorImage(maker, maker.imageAlt || maker.product + " photo") + '<span>' + escapeHTML(status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : maker.source === "local" ? "Pending demo listing" : "Pending sample") + "</span></div><div class=\"profile-details\"><p class=\"eyebrow eyebrow-dark\">" + escapeHTML(maker.category.toUpperCase()) + ' <span class="heading-line"></span></p><h1>' + escapeHTML(maker.name) + '</h1><p class="profile-town">⌖ ' + escapeHTML(maker.town) + ', Marinduque</p><p class="profile-description">' + escapeHTML(maker.description) + '</p><div class="profile-detail-row"><span>PRODUCT</span><strong>' + escapeHTML(maker.product) + '</strong></div><div class="profile-detail-row"><span>CAPACITY</span><strong>' + escapeHTML(maker.capacity) + '</strong></div>' + makerCertificationDetails(maker) + makerContactDetails(maker) + (status === "verified" ? '<a class="button button-dark profile-quote" href="quote.html?id=' + encodeURIComponent(maker.id) + '">Request a sample quote <span>→</span></a>' : '<p class="profile-unavailable">Quote requests are only shown for verified sample makers.</p>') + '<p class="sample-note"><span class="sample-note-dot"></span>' + (maker.source === "local" ? "Browser-only demo listing. Not published or verified." : "Fictional sample profile. Representative photo; not a real business or official verification.") + "</p>" + removeControls + "</div></section>" + footer() + "</div>";
     if (maker.source === "local") bindRemoveListing(maker.id);
   }
 

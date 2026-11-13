@@ -19,6 +19,8 @@ Open `html/index.html` in a modern browser. All pages are static and use no pack
 ## Demo workflows
 
 - Search and filter the sample maker directory.
+- View fictional contact names, emails, and phone numbers on sample maker profiles.
+- View fictional certification labels on sample maker profiles.
 - Create a demo maker listing, optionally with a product photo, that appears in the directory in the current browser.
 - Remove a browser-only demo listing from its profile page.
 - View maker profiles and preview a sample quote request.
@@ -30,7 +32,7 @@ Changes made in demo forms, including maker listings and resized product photos,
 
 ## Boundaries
 
-This static conversion does not include secure accounts, server-side persistence, password handling, email or message delivery, server-side file uploads, production authorization, official DTI review, or deployment. Local sample status changes are not official verification. The previous Next.js/Express/MongoDB application has been retired from this workspace; its unused dependency folders and manifests are not required to run the static prototype.
+This static conversion does not include secure accounts, server-side persistence, password handling, email or message delivery, server-side file uploads, production authorization, official DTI review, or deployment. Sample maker contact details are fictional and non-routable; they cannot be used to reach a maker. Sample certifications are invented demo labels, not real or verified credentials. New browser-only listings do not receive fabricated contact details or certifications. Local sample status changes are not official verification. The previous Next.js/Express/MongoDB application has been retired from this workspace; its unused dependency folders and manifests are not required to run the static prototype.
 
 Sample maker photos are representative and do not depict the fictional sample businesses. The photos are sourced from Wikimedia Commons and Flickr; the links below document their sources, creators, and licenses:
 
