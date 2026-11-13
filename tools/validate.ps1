@@ -3,6 +3,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $requiredDirectories = @("html", "assets", "data", "css", "docs", "js", "tools")
 $requiredFiles = @(
     "html\index.html",
+    "html\list-maker.html",
     "html\directory.html",
     "html\bulletin.html",
     "html\about.html",
@@ -14,6 +15,11 @@ $requiredFiles = @(
     "html\officer.html",
     "assets\mark.svg",
     "assets\maker-goods.svg",
+    "assets\sample-uraro.jpg",
+    "assets\sample-pottery.jpg",
+    "assets\sample-coconut-oil.jpg",
+    "assets\sample-woven-baskets.jpg",
+    "assets\sample-buntal-handicraft.jpg",
     "data\demo-data.js",
     "css\styles.css",
     "js\app.js",

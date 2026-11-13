@@ -8,7 +8,9 @@ window.TatagData = {
       description: "Small-batch arrowroot cookies, baked for sharing and gifting.",
       product: "Uraro cookies",
       capacity: "Up to 120 boxes / week",
-      status: "verified"
+      status: "verified",
+      image: "../assets/sample-uraro.jpg",
+      imageAlt: "Oatmeal raisin cookies on a plate; representative product photo"
     },
     {
       id: "sample-maker-02",
@@ -18,7 +20,9 @@ window.TatagData = {
       description: "Hand-thrown everyday pottery shaped from local clay.",
       product: "Handmade pottery",
       capacity: "Up to 45 pieces / month",
-      status: "verified"
+      status: "verified",
+      image: "../assets/sample-pottery.jpg",
+      imageAlt: "Traditional clay pots from Liloan, Cebu"
     },
     {
       id: "sample-maker-03",
@@ -28,7 +32,9 @@ window.TatagData = {
       description: "Coconut oil and toasted coconut products made by a local cooperative.",
       product: "Virgin coconut oil",
       capacity: "Up to 80 bottles / week",
-      status: "verified"
+      status: "verified",
+      image: "../assets/sample-coconut-oil.jpg",
+      imageAlt: "Coconut oil being cooked in the Philippines"
     },
     {
       id: "sample-maker-04",
@@ -38,17 +44,21 @@ window.TatagData = {
       description: "Woven home goods made in small runs with natural fibers.",
       product: "Woven baskets",
       capacity: "Up to 30 pieces / month",
-      status: "pending"
+      status: "pending",
+      image: "../assets/sample-woven-baskets.jpg",
+      imageAlt: "Handmade buri and rattan baskets from Manaoag, Pangasinan; representative photo"
     },
     {
       id: "sample-maker-05",
       name: "Sample Head and Shades",
-      town: " Sta.Cruz",
+      town: "Sta. Cruz",
       category: "Crafts",
       description: " Traditional lightweight straw hat made from very finely-woven fibers",
       product: "Buntal hats",
       capacity: "Up to 30 pieces / month",
-      status: "pending"
+      status: "pending",
+      image: "../assets/sample-buntal-handicraft.jpg",
+      imageAlt: "Buntal and talipot-fiber handicrafts made in Santa Cruz, Marinduque"
     }
   ],
   posts: [

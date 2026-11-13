@@ -5,6 +5,7 @@
   const data = window.TatagData;
   const STORAGE = {
     user: "tatag-demo-user",
+    vendors: "tatag-demo-vendors",
     posts: "tatag-demo-posts",
     quotes: "tatag-demo-quotes",
     statuses: "tatag-demo-vendor-statuses"
@@ -14,6 +15,59 @@
   function escapeHTML(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function (character) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character];
+    });
+  }
+
+  function vendorImage(vendor, alt) {
+    const photo = typeof vendor.photo === "string" && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(vendor.photo)
+      ? vendor.photo
+      : typeof vendor.image === "string" && (
+        /^\.\.\/assets\/[a-z0-9-]+\.(?:jpg|jpeg|png|svg|webp)$/.test(vendor.image) ||
+        /^https:\/\/(?:upload\.wikimedia\.org\/wikipedia\/commons\/[A-Za-z0-9_./%-]+\.jpg|live\.staticflickr\.com\/[A-Za-z0-9_./%-]+\.jpg)$/.test(vendor.image)
+      )
+        ? vendor.image
+        : "../assets/maker-goods.svg";
+    return '<img src="' + escapeHTML(photo) + '" alt="' + escapeHTML(alt) + '">';
+  }
+
+  function listingPhotoData(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file) {
+        resolve("");
+        return;
+      }
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+        reject(new Error("Choose a JPG, PNG, or WebP image."));
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        reject(new Error("Choose an image smaller than 8 MB."));
+        return;
+      }
+
+      const objectURL = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = function () {
+        URL.revokeObjectURL(objectURL);
+        try {
+          if (!image.naturalWidth || !image.naturalHeight) throw new Error("This image could not be opened.");
+          const scale = Math.min(1, 1200 / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("This browser could not process the image.");
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      image.onerror = function () {
+        URL.revokeObjectURL(objectURL);
+        reject(new Error("This image could not be opened."));
+      };
+      image.src = objectURL;
     });
   }
 
@@ -28,6 +82,10 @@
 
   function currentUser() {
     return readStorage(STORAGE.user, null);
+  }
+
+  function currentVendors() {
+    return data.vendors.concat(readStorage(STORAGE.vendors, []));
   }
 
   function currentPosts() {
@@ -46,8 +104,10 @@
     return currentStatuses()[vendor.id] || vendor.status;
   }
 
-  function statusBadge(status) {
-    const label = status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : "Pending sample";
+  function statusBadge(status, vendor) {
+    const label = vendor && vendor.source === "local" && status === "pending"
+      ? "Pending demo listing"
+      : status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : "Pending sample";
     const className = status === "verified" ? "verified-badge" : status === "rejected" ? "rejected-badge" : "pending-badge";
     return '<span class="' + className + '">' + label + "</span>";
   }
@@ -55,6 +115,7 @@
   function header(active, simple) {
     const links = [
       ["directory", "directory.html", "Find makers"],
+      ["listing", "list-maker.html", "List your business"],
       ["bulletin", "bulletin.html", "Sourcing board"],
       ["about", "about.html", "About"]
     ];
@@ -64,11 +125,11 @@
     if (simple) {
       return '<header class="simple-header"><a class="brand" href="index.html"><img class="brand-mark" src="../assets/mark.svg" alt=""><span>Tatag<span class="brand-light">Marinduque</span></span></a><nav class="simple-nav" aria-label="Main navigation">' + nav + '</nav></header>';
     }
-    return '<header class="topbar"><a class="brand" href="index.html" aria-label="TatagMarinduque home"><img class="brand-mark" src="../assets/mark.svg" alt=""><span>Tatag<span class="brand-light">Marinduque</span></span></a><nav class="desktop-nav" aria-label="Main navigation">' + nav + '</nav><div class="header-actions"><a class="sign-in" href="login.html">Sign in</a><a class="button button-small button-dark" href="register.html">Join as a maker <span aria-hidden="true">↗</span></a></div></header>';
+    return '<header class="topbar"><a class="brand" href="index.html" aria-label="TatagMarinduque home"><img class="brand-mark" src="../assets/mark.svg" alt=""><span>Tatag<span class="brand-light">Marinduque</span></span></a><nav class="desktop-nav" aria-label="Main navigation">' + nav + '</nav><div class="header-actions"><a class="sign-in" href="login.html">Sign in</a><a class="button button-small button-dark" href="list-maker.html">List your business <span aria-hidden="true">↗</span></a></div></header>';
   }
 
   function footer() {
-    return '<footer class="footer"><a class="brand footer-brand" href="index.html"><img class="brand-mark" src="../assets/mark.svg" alt=""><span>Tatag<span class="brand-light">Marinduque</span></span></a><span>Prototype · fictional sample data only</span></footer>';
+    return '<footer class="footer"><a class="brand footer-brand" href="index.html"><img class="brand-mark" src="../assets/mark.svg" alt=""><span>Tatag<span class="brand-light">Marinduque</span></span></a><span>Prototype · browser-only demo</span></footer>';
   }
 
   function vendorCards(vendors) {
@@ -77,8 +138,8 @@
     }
     return vendors.map(function (vendor, index) {
       const status = vendorStatus(vendor);
-      return '<article class="vendor-card"><a class="vendor-image-link" href="maker.html?id=' + encodeURIComponent(vendor.id) + '" aria-label="View ' + escapeHTML(vendor.name) + '"><img src="../assets/maker-goods.svg" alt="' + escapeHTML(vendor.product) + ' illustration"><span class="card-index">' + String(index + 1).padStart(2, "0") + "</span></a>" +
-        '<div class="vendor-card-body"><div class="vendor-topline"><span>' + escapeHTML(vendor.category.toUpperCase()) + " · " + escapeHTML(vendor.town.toUpperCase()) + "</span>" + statusBadge(status) + "</div>" +
+      return '<article class="vendor-card"><a class="vendor-image-link" href="maker.html?id=' + encodeURIComponent(vendor.id) + '" aria-label="View ' + escapeHTML(vendor.name) + '">' + vendorImage(vendor, vendor.imageAlt || vendor.product + " photo") + '<span class="card-index">' + String(index + 1).padStart(2, "0") + "</span></a>" +
+        '<div class="vendor-card-body"><div class="vendor-topline"><span>' + escapeHTML(vendor.category.toUpperCase()) + " · " + escapeHTML(vendor.town.toUpperCase()) + "</span>" + statusBadge(status, vendor) + "</div>" +
         "<h3>" + escapeHTML(vendor.name) + "</h3><p>" + escapeHTML(vendor.description) + '</p><div class="product-line"><span class="product-dot"></span>' + escapeHTML(vendor.product) + '<span class="capacity">' + escapeHTML(vendor.capacity) + "</span></div>" +
         '<a class="card-action" href="maker.html?id=' + encodeURIComponent(vendor.id) + '">View maker <span aria-hidden="true">↗</span></a></div></article>';
     }).join("");
@@ -96,7 +157,7 @@
 
     function render() {
       const query = input.value.trim().toLowerCase();
-      const rows = data.vendors.filter(function (vendor) {
+      const rows = currentVendors().filter(function (vendor) {
         const text = [vendor.name, vendor.town, vendor.product, vendor.description].join(" ").toLowerCase();
         return text.includes(query) && (category === "All makers" || vendor.category === category) &&
           (!verifiedOnly || vendorStatus(vendor) === "verified");
@@ -128,8 +189,8 @@
     app.innerHTML = header("directory", false) +
       '<section class="hero" id="home"><div class="hero-texture" aria-hidden="true"></div><div class="hero-copy-wrap"><p class="eyebrow"><span class="eyebrow-dot"></span>A LOCAL TRADE DIRECTORY</p><h1>Made here.<br><span>Ready to go further.</span></h1><p class="hero-copy">Meet the makers of Marinduque. Find products, connect with local producers, and build your next order together.</p><form class="hero-search" id="hero-search"><label class="search-icon" for="home-search" aria-hidden="true">⌕</label><input id="home-search" name="q" placeholder="Try uraro cookies, pottery, or a town"><button class="button button-straw" type="submit">Find makers <span aria-hidden="true">→</span></button></form><div class="hero-meta"><span>FOOD &amp; CRAFT</span><span class="meta-divider"></span><span>MADE IN MARINDUQUE</span><span class="meta-divider"></span><span>DIRECT CONNECTIONS</span></div></div><div class="hero-art" role="img" aria-label="Illustration of locally made goods"></div><div class="hero-caption">SAMPLE GOODS · ISLAND-MADE CONCEPT</div></section>' +
       '<section class="trust-strip" aria-label="Marketplace concept"><p><span class="strip-number">01</span>Find island-made goods</p><p><span class="strip-number">02</span>Request a sample quote</p><p><span class="strip-number">03</span>Source materials together</p><span class="strip-note">A directory for local trade <span aria-hidden="true">↘</span></span></section>' +
-      '<section class="section-wrap" id="directory"><div class="section-heading"><div><p class="eyebrow eyebrow-dark">THE MAKER DIRECTORY <span class="heading-line"></span></p><h2>Good things start<br>with a <em>connection.</em></h2></div><p class="section-intro">Browse fictional sample makers across the island. Search, filter, and explore the prototype workflows.</p></div>' +
-      '<div id="home-filters"><label class="search-bar"><span aria-hidden="true">⌕</span><input data-search aria-label="Search makers" placeholder="Search products, makers, or towns"><span class="result-count" data-count></span></label><div class="directory-tools"><div class="filter-tabs" role="group" aria-label="Filter by category"><button class="filter-tab selected" type="button" data-category="All makers" aria-pressed="true">All makers</button><button class="filter-tab" type="button" data-category="Food" aria-pressed="false">Food</button><button class="filter-tab" type="button" data-category="Crafts" aria-pressed="false">Crafts</button></div><label class="verified-toggle"><input type="checkbox" data-verified><span>DTI-verified samples only</span></label></div></div><div class="vendor-grid" id="home-vendors"></div><p class="sample-note"><span class="sample-note-dot"></span>All names and listings are fictional samples. Verification is not official.</p></section>' +
+      '<section class="section-wrap" id="directory"><div class="section-heading"><div><p class="eyebrow eyebrow-dark">THE MAKER DIRECTORY <span class="heading-line"></span></p><h2>Good things start<br>with a <em>connection.</em></h2></div><p class="section-intro">Browse sample makers across the island or add a browser-only demo listing for your business.</p></div>' +
+      '<div id="home-filters"><label class="search-bar"><span aria-hidden="true">⌕</span><input data-search aria-label="Search makers" placeholder="Search products, makers, or towns"><span class="result-count" data-count></span></label><div class="directory-tools"><div class="filter-tabs" role="group" aria-label="Filter by category"><button class="filter-tab selected" type="button" data-category="All makers" aria-pressed="true">All makers</button><button class="filter-tab" type="button" data-category="Food" aria-pressed="false">Food</button><button class="filter-tab" type="button" data-category="Crafts" aria-pressed="false">Crafts</button></div><label class="verified-toggle"><input type="checkbox" data-verified><span>DTI-verified samples only</span></label></div></div><div class="vendor-grid" id="home-vendors"></div><p class="sample-note"><span class="sample-note-dot"></span>Sample makers are fictional. Photos are representative and may not depict their products. New demo listings stay in this browser and are not verified.</p></section>' +
       '<section class="board-preview"><div class="board-preview-inner"><div><p class="eyebrow eyebrow-dark">THE SOURCING BOARD <span class="heading-line"></span></p><h2>Find what you need.<br><em>Share what you have.</em></h2><p>A sample board for local makers to share materials they need or have available.</p><a class="button button-dark" href="bulletin.html">Explore the board <span>→</span></a></div><div id="home-posts"></div></div></section>' + footer();
     bindVendorFilters({ root: "home-filters", list: "home-vendors", count: "home-filters" });
     document.getElementById("hero-search").addEventListener("submit", function (event) {
@@ -145,8 +206,73 @@
   }
 
   function renderDirectory() {
-    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="page-wrap"><div class="page-heading"><div><p class="eyebrow eyebrow-dark">THE MAKER DIRECTORY <span class="heading-line"></span></p><h1>Find your next<br><em>local supplier.</em></h1></div><p>Browse island makers and start a direct wholesale conversation. All listings are fictional samples.</p></div><div id="directory-filters"><label class="search-bar"><span aria-hidden="true">⌕</span><input data-search aria-label="Search makers" placeholder="Search products, makers, or towns"><span data-count></span></label><div class="directory-tools"><div class="filter-tabs" role="group" aria-label="Filter by category"><button class="filter-tab selected" type="button" data-category="All makers" aria-pressed="true">All makers</button><button class="filter-tab" type="button" data-category="Food" aria-pressed="false">Food</button><button class="filter-tab" type="button" data-category="Crafts" aria-pressed="false">Crafts</button></div><label class="verified-toggle"><input type="checkbox" data-verified><span>DTI-verified samples only</span></label></div></div><div class="directory-list" id="directory-list"></div><p class="sample-note"><span class="sample-note-dot"></span>Sample data only. No real businesses or certifications are represented.</p></section>' + footer() + "</div>";
+    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="page-wrap"><div class="page-heading"><div><p class="eyebrow eyebrow-dark">THE MAKER DIRECTORY <span class="heading-line"></span></p><h1>Find your next<br><em>local supplier.</em></h1></div><p>Browse island makers and start a direct wholesale conversation. You can also add a browser-only demo listing.</p></div><p><a class="button button-dark" href="list-maker.html">List your business <span>→</span></a></p><div id="directory-filters"><label class="search-bar"><span aria-hidden="true">⌕</span><input data-search aria-label="Search makers" placeholder="Search products, makers, or towns"><span data-count></span></label><div class="directory-tools"><div class="filter-tabs" role="group" aria-label="Filter by category"><button class="filter-tab selected" type="button" data-category="All makers" aria-pressed="true">All makers</button><button class="filter-tab" type="button" data-category="Food" aria-pressed="false">Food</button><button class="filter-tab" type="button" data-category="Crafts" aria-pressed="false">Crafts</button></div><label class="verified-toggle"><input type="checkbox" data-verified><span>DTI-verified samples only</span></label></div></div><div class="directory-list" id="directory-list"></div><p class="sample-note"><span class="sample-note-dot"></span>Sample makers are fictional. Photos are representative and may not depict their products. New demo listings stay in this browser and are not verified.</p></section>' + footer() + "</div>";
     bindDirectoryFilters();
+  }
+
+  function renderListingForm() {
+    app.innerHTML = '<div class="simple-page">' + header("listing", true) + '<section class="page-wrap"><div class="page-heading"><div><p class="eyebrow eyebrow-dark">MAKER DIRECTORY <span class="heading-line"></span></p><h1>Create a maker<br><em>listing.</em></h1></div><p>Add your products, capacity, and an optional photo to the local demo directory. This form does not publish information online.</p></div><div class="bulletin-layout"><section class="dashboard-card"><form class="post-form" id="maker-listing-form"><label>Business or maker name<input name="name" required maxlength="100" autocomplete="organization"></label><label>Town<select name="town" required><option value="">Choose a town</option><option>Boac</option><option>Buenavista</option><option>Gasan</option><option>Mogpog</option><option>Santa Cruz</option><option>Torrijos</option></select></label><label>Category<select name="category" required><option value="">Choose a category</option><option>Food</option><option>Crafts</option></select></label><label>Product<input name="product" required maxlength="100" placeholder="What do you make or sell?"></label><label>Description<textarea name="description" required maxlength="300" placeholder="Briefly describe your products"></textarea></label><label>Available capacity<input name="capacity" required maxlength="80" placeholder="For example, 40 pieces per month"></label><label>Product photo (optional)<input id="listing-photo" type="file" accept="image/jpeg,image/png,image/webp"><span class="form-note">JPG, PNG, or WebP up to 8 MB. Resized before saving in this browser.</span></label><img id="listing-photo-preview" class="listing-photo-preview" alt="Selected product photo preview" hidden><p id="photo-status" class="form-note" role="status" aria-live="polite"></p><button class="button button-dark" type="submit">Save demo listing <span>→</span></button><p class="form-note">Saved only in this browser. It will not be published to Vercel or shared with other visitors.</p><div class="status-region" id="listing-status" role="status" aria-live="polite"></div></form></section><aside class="post-form-wrap"><p class="eyebrow eyebrow-dark">DEMO ONLY <span class="heading-line"></span></p><h2>Not published.</h2><p>Your listing and photo stay in this browser and appear only in its local directory. New listings are pending and unverified. Do not enter sensitive personal or business information.</p></aside></div></section>' + footer() + "</div>";
+    const form = document.getElementById("maker-listing-form");
+    const photoInput = document.getElementById("listing-photo");
+    const photoPreview = document.getElementById("listing-photo-preview");
+    let previewURL = "";
+    photoInput.addEventListener("change", function () {
+      if (previewURL) URL.revokeObjectURL(previewURL);
+      previewURL = "";
+      photoPreview.hidden = true;
+      photoPreview.removeAttribute("src");
+      const file = photoInput.files[0];
+      const status = document.getElementById("photo-status");
+      status.textContent = "";
+      if (!file) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+        photoInput.value = "";
+        status.textContent = "Choose a JPG, PNG, or WebP image.";
+        return;
+      }
+      if (file.size > 8 * 1024 * 1024) {
+        photoInput.value = "";
+        status.textContent = "Choose an image smaller than 8 MB.";
+        return;
+      }
+      previewURL = URL.createObjectURL(file);
+      photoPreview.src = previewURL;
+      photoPreview.hidden = false;
+    });
+    form.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const submit = form.querySelector('[type="submit"]');
+      const fields = new FormData(form);
+      submit.disabled = true;
+      try {
+        const photo = await listingPhotoData(photoInput.files[0]);
+        const listing = {
+          id: "local-maker-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+          name: String(fields.get("name")).trim(),
+          town: String(fields.get("town")),
+          category: String(fields.get("category")),
+          product: String(fields.get("product")).trim(),
+          description: String(fields.get("description")).trim(),
+          capacity: String(fields.get("capacity")).trim(),
+          photo: photo,
+          status: "pending",
+          source: "local"
+        };
+        const listings = readStorage(STORAGE.vendors, []);
+        if (!Array.isArray(listings)) throw new Error("Saved listings are not in the expected format.");
+        writeStorage(STORAGE.vendors, [listing].concat(listings));
+        form.reset();
+        if (previewURL) URL.revokeObjectURL(previewURL);
+        previewURL = "";
+        photoPreview.hidden = true;
+        photoPreview.removeAttribute("src");
+        document.getElementById("listing-status").innerHTML = '<p class="inline-message">Saved in this browser only. <a href="maker.html?id=' + encodeURIComponent(listing.id) + '">View your listing</a>.</p>';
+      } catch (error) {
+        document.getElementById("listing-status").innerHTML = '<p class="inline-message" role="alert">Could not save your listing: ' + escapeHTML(error.message) + "</p>";
+      } finally {
+        submit.disabled = false;
+      }
+    });
   }
 
   function bindDirectoryFilters() {
@@ -160,7 +286,7 @@
 
     function render() {
       const query = input.value.trim().toLowerCase();
-      const vendors = data.vendors.filter(function (vendor) {
+      const vendors = currentVendors().filter(function (vendor) {
         return [vendor.name, vendor.town, vendor.product, vendor.description].join(" ").toLowerCase().includes(query) &&
           (category === "All makers" || vendor.category === category) &&
           (!verified.checked || vendorStatus(vendor) === "verified");
@@ -168,7 +294,7 @@
       count.textContent = vendors.length + (vendors.length === 1 ? " maker" : " makers");
       list.innerHTML = vendors.length ? vendors.map(function (vendor, index) {
         const status = vendorStatus(vendor);
-        return '<article class="directory-maker"><a href="maker.html?id=' + encodeURIComponent(vendor.id) + '" class="directory-maker-image" aria-label="View ' + escapeHTML(vendor.name) + '"><img src="../assets/maker-goods.svg" alt=""><span>' + String(index + 1).padStart(2, "0") + "</span></a><div class=\"directory-maker-content\"><div class=\"vendor-topline\"><span>" + escapeHTML(vendor.category.toUpperCase() + " · " + vendor.town.toUpperCase()) + "</span>" + statusBadge(status) + "</div><h2>" + escapeHTML(vendor.name) + "</h2><p>" + escapeHTML(vendor.description) + '</p><div class="maker-capacity"><span>Available capacity</span><strong>' + escapeHTML(vendor.capacity) + '</strong></div><div class="directory-maker-actions"><a class="text-link" href="maker.html?id=' + encodeURIComponent(vendor.id) + '">View maker <span>→</span></a>' + (status === "verified" ? '<a class="button button-dark" href="quote.html?id=' + encodeURIComponent(vendor.id) + '">Request a quote <span>↗</span></a>' : "") + "</div></div></article>";
+        return '<article class="directory-maker"><a href="maker.html?id=' + encodeURIComponent(vendor.id) + '" class="directory-maker-image" aria-label="View ' + escapeHTML(vendor.name) + '">' + vendorImage(vendor, vendor.imageAlt || vendor.product + " photo") + '<span>' + String(index + 1).padStart(2, "0") + "</span></a><div class=\"directory-maker-content\"><div class=\"vendor-topline\"><span>" + escapeHTML(vendor.category.toUpperCase() + " · " + vendor.town.toUpperCase()) + "</span>" + statusBadge(status, vendor) + "</div><h2>" + escapeHTML(vendor.name) + "</h2><p>" + escapeHTML(vendor.description) + '</p><div class="maker-capacity"><span>Available capacity</span><strong>' + escapeHTML(vendor.capacity) + '</strong></div><div class="directory-maker-actions"><a class="text-link" href="maker.html?id=' + encodeURIComponent(vendor.id) + '">View maker <span>→</span></a>' + (status === "verified" ? '<a class="button button-dark" href="quote.html?id=' + encodeURIComponent(vendor.id) + '">Request a quote <span>↗</span></a>' : "") + "</div></div></article>";
       }).join("") : '<div class="empty-state"><strong>No makers found.</strong><span>Try another search or filter.</span></div>';
     }
 
@@ -262,20 +388,50 @@
     });
   }
 
+  function bindRemoveListing(id) {
+    const removeButton = document.getElementById("remove-listing");
+    const confirmation = document.getElementById("remove-listing-confirm");
+    const status = document.getElementById("remove-listing-status");
+    removeButton.addEventListener("click", function () {
+      removeButton.hidden = true;
+      confirmation.hidden = false;
+    });
+    document.getElementById("cancel-remove-listing").addEventListener("click", function () {
+      confirmation.hidden = true;
+      removeButton.hidden = false;
+    });
+    document.getElementById("confirm-remove-listing").addEventListener("click", function () {
+      try {
+        const listings = readStorage(STORAGE.vendors, []);
+        if (!Array.isArray(listings)) throw new Error("Saved listings are not in the expected format.");
+        const remaining = listings.filter(function (listing) { return listing.id !== id; });
+        if (remaining.length === listings.length) throw new Error("This listing was not found in this browser.");
+        writeStorage(STORAGE.vendors, remaining);
+        location.href = "directory.html";
+      } catch (error) {
+        status.innerHTML = '<p class="inline-message" role="alert">Could not remove this listing: ' + escapeHTML(error.message) + "</p>";
+      }
+    });
+  }
+
   function renderMaker() {
     const id = new URLSearchParams(location.search).get("id");
-    const maker = data.vendors.find(function (vendor) { return vendor.id === id; });
+    const maker = currentVendors().find(function (vendor) { return vendor.id === id; });
     if (!maker) {
       app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="simple-hero"><p class="eyebrow eyebrow-dark">MAKER PROFILE</p><h1>Profile not found.</h1><p>This sample profile is not available. Browse the directory for available makers.</p><a class="button button-dark" href="directory.html">Browse makers <span>→</span></a></section>' + footer() + "</div>";
       return;
     }
     const status = vendorStatus(maker);
-    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="profile-layout"><div class="profile-image"><img src="../assets/maker-goods.svg" alt="' + escapeHTML(maker.product) + ' illustration"><span>' + escapeHTML(status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : "Pending sample") + "</span></div><div class=\"profile-details\"><p class=\"eyebrow eyebrow-dark\">" + escapeHTML(maker.category.toUpperCase()) + ' <span class="heading-line"></span></p><h1>' + escapeHTML(maker.name) + '</h1><p class="profile-town">⌖ ' + escapeHTML(maker.town) + ', Marinduque</p><p class="profile-description">' + escapeHTML(maker.description) + '</p><div class="profile-detail-row"><span>PRODUCT</span><strong>' + escapeHTML(maker.product) + '</strong></div><div class="profile-detail-row"><span>CAPACITY</span><strong>' + escapeHTML(maker.capacity) + '</strong></div><div class="profile-detail-row"><span>CERTIFICATIONS</span><strong>Not provided in sample data</strong></div><div class="profile-detail-row"><span>CONTACT</span><strong>Not provided in sample data</strong></div>' + (status === "verified" ? '<a class="button button-dark profile-quote" href="quote.html?id=' + encodeURIComponent(maker.id) + '">Request a sample quote <span>→</span></a>' : '<p class="profile-unavailable">Quote requests are only shown for verified sample makers.</p>') + '<p class="sample-note"><span class="sample-note-dot"></span>Fictional sample profile. Not a real business or official verification.</p></div></section>' + footer() + "</div>";
+    const removeControls = maker.source === "local"
+      ? '<div class="listing-management"><button class="reject-button" id="remove-listing" type="button">Remove this listing</button><div id="remove-listing-confirm" hidden><p>Delete this demo listing and its photo from this browser?</p><div class="officer-actions"><button class="button button-dark" id="cancel-remove-listing" type="button">Keep listing</button><button class="reject-button" id="confirm-remove-listing" type="button">Delete listing</button></div></div><div id="remove-listing-status" class="status-region" role="status" aria-live="polite"></div></div>'
+      : "";
+    app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="profile-layout"><div class="profile-image">' + vendorImage(maker, maker.imageAlt || maker.product + " photo") + '<span>' + escapeHTML(status === "verified" ? "Verified sample" : status === "rejected" ? "Rejected sample" : maker.source === "local" ? "Pending demo listing" : "Pending sample") + "</span></div><div class=\"profile-details\"><p class=\"eyebrow eyebrow-dark\">" + escapeHTML(maker.category.toUpperCase()) + ' <span class="heading-line"></span></p><h1>' + escapeHTML(maker.name) + '</h1><p class="profile-town">⌖ ' + escapeHTML(maker.town) + ', Marinduque</p><p class="profile-description">' + escapeHTML(maker.description) + '</p><div class="profile-detail-row"><span>PRODUCT</span><strong>' + escapeHTML(maker.product) + '</strong></div><div class="profile-detail-row"><span>CAPACITY</span><strong>' + escapeHTML(maker.capacity) + '</strong></div><div class="profile-detail-row"><span>CERTIFICATIONS</span><strong>Not provided in sample data</strong></div><div class="profile-detail-row"><span>CONTACT</span><strong>Not provided in sample data</strong></div>' + (status === "verified" ? '<a class="button button-dark profile-quote" href="quote.html?id=' + encodeURIComponent(maker.id) + '">Request a sample quote <span>→</span></a>' : '<p class="profile-unavailable">Quote requests are only shown for verified sample makers.</p>') + '<p class="sample-note"><span class="sample-note-dot"></span>' + (maker.source === "local" ? "Browser-only demo listing. Not published or verified." : "Fictional sample profile. Representative photo; not a real business or official verification.") + "</p>" + removeControls + "</div></section>" + footer() + "</div>";
+    if (maker.source === "local") bindRemoveListing(maker.id);
   }
 
   function renderQuote() {
     const id = new URLSearchParams(location.search).get("id");
-    const maker = data.vendors.find(function (vendor) { return vendor.id === id; });
+    const maker = currentVendors().find(function (vendor) { return vendor.id === id; });
     if (!maker || vendorStatus(maker) !== "verified") {
       app.innerHTML = '<div class="simple-page">' + header("directory", true) + '<section class="simple-hero"><p class="eyebrow eyebrow-dark">SAMPLE QUOTE</p><h1>Quote request unavailable.</h1><p>Choose an available verified sample maker from the directory.</p><a class="button button-dark" href="directory.html">Browse makers</a></section>' + footer() + "</div>";
       return;
@@ -334,9 +490,9 @@
     app.innerHTML = '<div class="simple-page">' + header("", true) + '<section class="page-wrap"><div class="page-heading"><div><p class="eyebrow eyebrow-dark">DEMO REVIEW QUEUE <span class="heading-line"></span></p><h1>Review maker<br><em>profiles.</em></h1></div><p>This control changes only the sample status in this browser. It is not an official decision.</p></div><div id="review-list" class="dashboard-grid"></div><div id="review-status" class="status-region" role="status" aria-live="polite"></div><p class="sample-note"><span class="sample-note-dot"></span>Demo reviewer only. No DTI decision or certification is represented.</p></section>' + footer() + "</div>";
     const list = document.getElementById("review-list");
     function renderQueue() {
-      const pending = data.vendors.filter(function (vendor) { return vendorStatus(vendor) === "pending"; });
+      const pending = currentVendors().filter(function (vendor) { return vendorStatus(vendor) === "pending"; });
       list.innerHTML = pending.length ? pending.map(function (vendor) {
-        return '<article class="review-card dashboard-card" data-review-id="' + escapeHTML(vendor.id) + '"><div class="vendor-topline">' + statusBadge("pending") + "<span>" + escapeHTML(vendor.category + " · " + vendor.town) + "</span></div><h2>" + escapeHTML(vendor.name) + "</h2><p>" + escapeHTML(vendor.description) + "</p><p><strong>Capacity:</strong> " + escapeHTML(vendor.capacity) + '</p><div class="officer-actions"><button class="button button-dark" type="button" data-review="verified">Mark sample verified</button><button class="reject-button" type="button" data-review="rejected">Reject sample</button></div></article>';
+        return '<article class="review-card dashboard-card" data-review-id="' + escapeHTML(vendor.id) + '"><div class="vendor-topline">' + statusBadge("pending", vendor) + "<span>" + escapeHTML(vendor.category + " · " + vendor.town) + "</span></div><h2>" + escapeHTML(vendor.name) + "</h2><p>" + escapeHTML(vendor.description) + "</p><p><strong>Capacity:</strong> " + escapeHTML(vendor.capacity) + '</p><div class="officer-actions"><button class="button button-dark" type="button" data-review="verified">Mark sample verified</button><button class="reject-button" type="button" data-review="rejected">Reject sample</button></div></article>';
       }).join("") : '<div class="empty-state"><strong>All caught up.</strong><span>No pending sample profiles to review.</span></div>';
     }
     list.addEventListener("click", function (event) {
@@ -363,6 +519,7 @@
     about: renderAbout,
     login: function () { renderAuth("login"); },
     register: function () { renderAuth("register"); },
+    "list-maker": renderListingForm,
     maker: renderMaker,
     quote: renderQuote,
     dashboard: renderDashboard,

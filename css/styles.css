@@ -153,6 +153,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .post-form input, .post-form select, .post-form textarea { width: 100%; min-height: 44px; padding: .7rem; border: 1px solid #d4d0c4; border-radius: 2px; background: white; color: var(--ink); }
 .post-form textarea { min-height: 105px; resize: vertical; }
 .post-form > p, .form-note { margin: 0; color: var(--muted); font-size: .75rem; }
+.listing-photo-preview { width: min(100%, 360px); max-height: 240px; object-fit: cover; border: 1px solid var(--line); }
 .inline-message { padding: .75rem; border-left: 3px solid var(--sea); background: #e7f0e9; color: var(--sea-dark); font-size: .84rem; }
 .simple-hero { max-width: 1000px; margin: auto; padding: 5rem 2rem 3rem; }
 .simple-hero h1 { margin-bottom: 1.25rem; }
@@ -171,6 +172,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .profile-image > span { position: absolute; left: 1rem; bottom: 1rem; padding: .4rem .75rem; background: white; color: var(--sea); font-size: .78rem; }
 .profile-details h1 { margin: .5rem 0; font-family: var(--serif); font-size: clamp(2.3rem, 4vw, 3.7rem); font-weight: 400; line-height: 1; }
 .profile-town, .profile-description { color: var(--muted); }
+.listing-management { margin-top: 1rem; }
+.listing-management > [id="remove-listing-confirm"] > p { color: var(--muted); font-size: .85rem; }
 .profile-detail-row { display: flex; justify-content: space-between; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--line); font-size: .82rem; }
 .profile-detail-row span { color: var(--muted); font-size: .7rem; letter-spacing: .08em; }
 .profile-detail-row strong { text-align: right; }
